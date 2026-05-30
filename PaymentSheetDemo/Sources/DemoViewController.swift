@@ -14,26 +14,27 @@ let APPLICATION_ID = "APgPDQrLD52TYvqazjHJJchM"
 let BRANDING_LOGO: UIImage? = #imageLiteral(resourceName: "FinixLogo")
 let BRANDING_NAME = "Daphne's Corner"
 
-// NOTE: customize payment sheet colors.
-// `default` theme can be copied and individual colors overriden
-let customTheme: ColorTheme = {
-    var myTheme: ColorTheme = .default
+// Theme options
+enum ThemeOption: Int, CaseIterable {
+    case defaultTheme
+    case finixCheckoutTheme
 
-    myTheme.surface = .white
+    var title: String {
+        switch self {
+        case .defaultTheme: return "Default"
+        case .finixCheckoutTheme: return "FinixCheckout"
+        }
+    }
 
-    myTheme.label = .black
-    myTheme.text = .green
-    myTheme.container = .yellow
-    myTheme.cancelButton = .magenta
-    myTheme.cancelButtonText = .orange
-
-    myTheme.tokenizeButton = .lightGray
-    myTheme.tokenizeButtonText = .purple
-
-    myTheme.errorLabel = .red
-    myTheme.logoText = .green
-    return myTheme
-}()
+    var theme: any ColorThemeProtocol {
+        switch self {
+        case .defaultTheme:
+            return ColorTheme.default
+        case .finixCheckoutTheme:
+            return FinixCheckoutTheme1.default
+        }
+    }
+}
 
 /**
  This controller demonstrates usage of the PaymentSheet.
@@ -69,8 +70,8 @@ class DemoViewController: UITableViewController {
         let credentials = FinixCredentials(applicationId: APPLICATION_ID, environment: .Sandbox)
         paymentSDK = .init(credentials: credentials)
 
-        // Set up configuration
-        paymentSDK.configuration = .init(title: "Card Entry", branding: branding, buttonTitle: "Tokenize")
+        // Set up configuration with card scanning
+        paymentSDK.configuration = .init(title: "Card Entry", branding: branding, buttonTitle: "Tokenize", enableCardScanning: enableCardScanning)
 
         /** NOTE: to provide your own customized text (e.g. localization), you may override the default localization.
           E.g
@@ -98,8 +99,8 @@ class DemoViewController: UITableViewController {
         case .bank:
             return BankStyle.allCases.count
         case .configuration:
-            return DemoSwitch.allCases.count
-        case .objc:
+            return DemoSwitch.allCases.count + 1 // +1 for theme selector
+        case .swiftui, .objc:
             return 1
         }
     }
@@ -111,21 +112,46 @@ class DemoViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         switch DemoCellSection.allCases[indexPath.section] {
         case .configuration:
-            guard let cell = tableView.dequeueReusableCell(withIdentifier: DemoSwitchCell.Identifier) as? DemoSwitchCell else {
-                fatalError("Expected DemoCell")
+            // Check if this is the theme selector row (last row)
+            if indexPath.row == DemoSwitch.allCases.count {
+                let cell = UITableViewCell(style: .default, reuseIdentifier: "ThemeCell")
+                cell.selectionStyle = .none
+                cell.textLabel?.text = "Theme"
+
+                let segmentedControl = UISegmentedControl(items: ThemeOption.allCases.map(\.title))
+                segmentedControl.selectedSegmentIndex = selectedTheme.rawValue
+                segmentedControl.addTarget(self, action: #selector(themeSegmentedControlChanged(_:)), for: .valueChanged)
+                segmentedControl.translatesAutoresizingMaskIntoConstraints = false
+
+                cell.contentView.addSubview(segmentedControl)
+                NSLayoutConstraint.activate([
+                    segmentedControl.trailingAnchor.constraint(equalTo: cell.contentView.trailingAnchor, constant: -16),
+                    segmentedControl.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor),
+                    segmentedControl.widthAnchor.constraint(equalToConstant: 220),
+                ])
+
+                return cell
+            } else {
+                // Switch cells
+                guard let cell = tableView.dequeueReusableCell(withIdentifier: DemoSwitchCell.Identifier) as? DemoSwitchCell else {
+                    fatalError("Expected DemoSwitchCell")
+                }
+                cell.selectionStyle = .none
+                let demoSwitch = DemoSwitch.allCases[indexPath.row]
+                switch demoSwitch {
+                case .showCountry:
+                    cell.switchControl.isOn = showCountry
+                    cell.switchControl.addTarget(self, action: #selector(showCountryValueChanged(_:)), for: .valueChanged)
+                case .showCancelButton:
+                    cell.switchControl.isOn = showCancelButton
+                    cell.switchControl.addTarget(self, action: #selector(showCancelButtonValueChanged(_:)), for: .valueChanged)
+                case .enableCardScanning:
+                    cell.switchControl.isOn = enableCardScanning
+                    cell.switchControl.addTarget(self, action: #selector(enableCardScanningValueChanged(_:)), for: .valueChanged)
+                }
+                cell.textLabel?.text = demoSwitch.title
+                return cell
             }
-            cell.selectionStyle = .none
-            let demoSwitch = DemoSwitch.allCases[indexPath.row]
-            switch demoSwitch {
-            case .showCountry:
-                cell.switchControl.isOn = showCountry
-                cell.switchControl.addTarget(self, action: #selector(showCountryValueChanged(_:)), for: .valueChanged)
-            case .showCancelButton:
-                cell.switchControl.isOn = showCancelButton
-                cell.switchControl.addTarget(self, action: #selector(showCancelButtonValueChanged(_:)), for: .valueChanged)
-            }
-            cell.textLabel?.text = demoSwitch.title
-            return cell
         case .modal, .push:
             guard let cell = tableView.dequeueReusableCell(withIdentifier: DemoCell.Identifier) as? DemoCell else {
                 fatalError("Expected DemoCell")
@@ -137,6 +163,13 @@ class DemoViewController: UITableViewController {
                 fatalError("Expected DemoCell")
             }
             cell.textLabel?.text = "Bank"
+            return cell
+        case .swiftui:
+            guard let cell = tableView.dequeueReusableCell(withIdentifier: DemoCell.Identifier) as? DemoCell else {
+                fatalError("Expected DemoCell")
+            }
+            cell.textLabel?.text = "Open SwiftUI Demo"
+            cell.accessoryType = .disclosureIndicator
             return cell
         case .objc:
             guard let cell = tableView.dequeueReusableCell(withIdentifier: DemoCell.Identifier) as? DemoCell else {
@@ -173,6 +206,10 @@ class DemoViewController: UITableViewController {
             return
         case .bank:
             modalPresentBankSheet()
+        case .swiftui:
+            if #available(iOS 15.0, *) {
+                openSwiftUIDemo()
+            }
         case .objc:
             openObjCDemo()
         }
@@ -181,6 +218,12 @@ class DemoViewController: UITableViewController {
     // configuration
     private var showCountry: Bool = false
     private var showCancelButton: Bool = false
+    private var enableCardScanning: Bool = true
+    private var selectedTheme: ThemeOption = .finixCheckoutTheme
+
+    private var customTheme: any ColorThemeProtocol {
+        selectedTheme.theme
+    }
 }
 
 enum DemoCellSection: Int, CaseIterable {
@@ -188,6 +231,7 @@ enum DemoCellSection: Int, CaseIterable {
     case push
     case configuration
     case bank
+    case swiftui
     case objc
 
     var title: String {
@@ -198,6 +242,8 @@ enum DemoCellSection: Int, CaseIterable {
             return "Push Presentation"
         case .configuration:
             return "Configuration"
+        case .swiftui:
+            return "SwiftUI Demo"
         case .bank:
             return "Bank Modal Presentation"
         case .objc:
@@ -240,6 +286,7 @@ enum BankStyle: Int, CaseIterable {
 enum DemoSwitch: Int, CaseIterable {
     case showCountry
     case showCancelButton
+    case enableCardScanning
 
     var title: String {
         switch self {
@@ -247,6 +294,19 @@ enum DemoSwitch: Int, CaseIterable {
             return "Show Cancel Button"
         case .showCountry:
             return "Show Country"
+        case .enableCardScanning:
+            return "Enable Card Scanning"
+        }
+    }
+}
+
+enum DemoSelector: Int, CaseIterable {
+    case themeSelector
+
+    var title: String {
+        switch self {
+        case .themeSelector:
+            return "Theme"
         }
     }
 }
@@ -342,6 +402,29 @@ extension DemoViewController {
     @IBAction
     func showCancelButtonValueChanged(_ switchView: UISwitch) {
         showCancelButton = switchView.isOn
+    }
+
+    @IBAction
+    func enableCardScanningValueChanged(_ switchView: UISwitch) {
+        enableCardScanning = switchView.isOn
+        // Update the PaymentSDK configuration
+        paymentSDK.configuration = .init(
+            title: "Card Entry",
+            branding: branding,
+            buttonTitle: "Tokenize",
+            enableCardScanning: enableCardScanning
+        )
+    }
+
+    @objc
+    func themeSegmentedControlChanged(_ segmentedControl: UISegmentedControl) {
+        selectedTheme = ThemeOption(rawValue: segmentedControl.selectedSegmentIndex) ?? .finixCheckoutTheme
+    }
+
+    @available(iOS 15.0, *)
+    private func openSwiftUIDemo() {
+        let swiftuiDemo = SwiftUIDemoViewController()
+        navigationController?.pushViewController(swiftuiDemo, animated: true)
     }
 
     private func openObjCDemo() {

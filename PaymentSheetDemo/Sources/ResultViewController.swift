@@ -40,7 +40,24 @@ class ResultViewController: UIViewController {
     }
 
     @objc func doneTapped(_: Any?) {
-        navigationController?.presentingViewController?.dismiss(animated: true)
+        // Handle both modal presentation and navigation push
+        if let navController = navigationController {
+            if navController.presentingViewController != nil {
+                // Modal presentation: dismiss the entire modal
+                navController.presentingViewController?.dismiss(animated: true)
+            } else {
+                // Navigation push: pop back to root (before PaymentInputController)
+                if let paymentControllerIndex = navController.viewControllers.firstIndex(where: { $0 is PaymentInputController }) {
+                    // Pop to the view controller before the PaymentInputController
+                    if paymentControllerIndex > 0 {
+                        navController.popToViewController(navController.viewControllers[paymentControllerIndex - 1], animated: true)
+                    } else {
+                        // PaymentInputController is the root, pop to it
+                        navController.popToRootViewController(animated: true)
+                    }
+                }
+            }
+        }
     }
 
     let textView: UITextView = {
@@ -66,7 +83,8 @@ class ResultViewController: UIViewController {
         }
     }
 
-    // Objective-C compatible methods
+    // MARK: - Objective-C Compatibility
+
     @objc func setResult(success instrument: TokenResponse) {
         result = .success(instrument)
     }

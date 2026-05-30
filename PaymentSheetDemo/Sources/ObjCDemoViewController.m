@@ -74,11 +74,12 @@ typedef NS_ENUM(NSInteger, ObjCDemoRow) {
     UIImage *logo = [UIImage imageNamed:@"FinixLogo"];
     self.branding = [[Branding alloc] initWithImage:logo title:@"Objective-C Demo"];
 
-    // 3. Create configuration
+    // 3. Create configuration (with card scanning enabled)
     Configuration *config = [[Configuration alloc]
         initWithTitle:@"Card Entry (Objective-C)"
         branding:self.branding
-        buttonTitle:@"Tokenize"];
+        buttonTitle:@"Tokenize"
+        enableCardScanning:YES];
 
     // 4. Initialize PaymentAction with delegate
     self.paymentAction = [[PaymentAction alloc]
