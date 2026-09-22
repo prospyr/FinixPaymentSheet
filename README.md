@@ -4,7 +4,35 @@ Payment tokenization SDK for iOS with Swift and Objective-C support.
 
 ## Installation
 
-### Option 1: Latest Version (Recommended)
+### Swift Package Manager
+
+In Xcode, choose File → Add Package Dependencies… and enter:
+
+```
+https://github.com/prospyr/FinixPaymentSheet.git
+```
+
+Select the `main` branch, or a version tag such as `1.0.10` once one is published. Add the `FinixPaymentSheet` library to your app target.
+
+Or add it in `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/prospyr/FinixPaymentSheet.git", branch: "main")
+],
+targets: [
+    .target(
+        name: "YourApp",
+        dependencies: [
+            .product(name: "FinixPaymentSheet", package: "FinixPaymentSheet")
+        ]
+    )
+]
+```
+
+The package requires iOS 15.0 or later, which matches the xcframework's minimum OS version.
+
+### CocoaPods
 
 Add to your `Podfile`:
 
@@ -12,7 +40,7 @@ Add to your `Podfile`:
 pod 'FinixPaymentSheet', :git => 'https://github.com/finix-payments/FinixPaymentSheet.git', :tag => 'v1.0.9'
 ```
 
-### Option 2: Direct Podspec URL
+### Direct Podspec URL
 
 ```ruby
 pod 'FinixPaymentSheet', :podspec => 'https://raw.githubusercontent.com/finix-payments/FinixPaymentSheet/main/FinixPaymentSheet.podspec'
@@ -34,7 +62,7 @@ pod 'FinixPaymentSheet', :git => 'https://github.com/finix-payments/FinixPayment
 
 ## SDK Integration
 
-After running `pod install`, the SDK is ready to use. **No bridging headers or additional setup required** - just import and start using.
+After installation, the SDK is ready to use. **No bridging headers or additional setup required** - just import and start using.
 
 ### Swift Integration
 
@@ -202,8 +230,8 @@ This demo shows real-world usage patterns and best practices for integrating the
 
 ## Requirements
 
-- iOS 12.0+
-- Xcode 14.0+
+- iOS 15.0+
+- Xcode 26.4+ (Swift 6.3, the compiler that built the xcframework)
 
 ## Support
 
